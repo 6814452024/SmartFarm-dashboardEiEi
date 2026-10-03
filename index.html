@@ -372,12 +372,12 @@
 
   <script>
     const broker = "broker.hivemq.com";
-    const port = 8000;
-    const clientID = "web_farm_v_" + Math.random().toString(16).substr(2, 8);
-    const dataTopic = "my_farm_12345/data";
-    const commandTopic = "my_farm_12345/command";
+const port = 8884; // เปลี่ยนจาก 8000 เป็น 8884 (พอร์ตสำหรับ WSS)
+const clientID = "web_farm_v_" + Math.random().toString(16).substr(2, 8);
+const dataTopic = "my_farm_12345/data";
+const commandTopic = "my_farm_12345/command";
 
-    const client = new Paho.MQTT.Client(broker, Number(port), clientID);
+const client = new Paho.MQTT.Client(broker, Number(port), clientID);
 
     const connStatus = document.getElementById('connStatus');
     const connText = document.getElementById('connText');
@@ -414,6 +414,7 @@
     function connectMQTT() {
       connText.innerText = "กำลังต่อ...";
       client.connect({
+        useSSL: true, // <--- เพิ่มบรรทัดนี้เพื่อให้ต่อผ่าน WSS (HTTPS) ได้
         onSuccess: function () {
           connStatus.classList.add('connected');
           connText.innerText = "ออนไลน์";
@@ -421,6 +422,7 @@
         },
         onFailure: function (err) {
           connText.innerText = "ล้มเหลว";
+          console.error("MQTT Connect Error: ", err);
           setTimeout(connectMQTT, 4000);
         }
       });
