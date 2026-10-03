@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Smart Farm Vertical Dashboard</title>
+  <title>SmartFarm Dashboard</title>
   
   <!-- Fonts & Icons -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -33,7 +33,6 @@
       font-family: 'Plus Jakarta Sans', sans-serif;
     }
 
-    /* พื้นหลังแบบ Animated Gradient Mesh */
     body {
       min-height: 100vh;
       background: radial-gradient(circle at 10% 20%, rgba(16, 185, 129, 0.15) 0%, transparent 40%),
@@ -53,16 +52,14 @@
       100% { background-position: 0% 0%; }
     }
 
-    /* Vertical Container ควบคุมสัดส่วนแนวตั้ง */
     .vertical-container {
       width: 100%;
-      max-width: 440px; /* ขนาดสมส่วนกำลังดีสำหรับมือถือ/การมองแนวตั้ง */
+      max-width: 440px;
       display: flex;
       flex-direction: column;
       gap: 1.25rem;
     }
 
-    /* Header */
     header {
       background: var(--card-bg);
       backdrop-filter: blur(12px);
@@ -111,24 +108,32 @@
       background-color: #94a3b8;
     }
 
+    /* สถานะออนไลน์ (สีเขียว) */
     .status-badge.connected {
       background: var(--primary-light);
       color: #047857;
     }
-
     .status-badge.connected .status-dot {
       background-color: var(--primary);
       box-shadow: 0 0 8px var(--primary);
     }
 
-    /* Main Section - Grid แนวตั้ง 2 คอลัมน์สำหรับค่าเซนเซอร์ */
+    /* สถานะออฟไลน์ (สีแดง) */
+    .status-badge.offline {
+      background: var(--danger-light);
+      color: #b91c1c;
+    }
+    .status-badge.offline .status-dot {
+      background-color: var(--danger);
+      box-shadow: 0 0 8px var(--danger);
+    }
+
     .sensor-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 1rem;
     }
 
-    /* Card Glassmorphism Design */
     .card {
       background: var(--card-bg);
       backdrop-filter: blur(12px);
@@ -167,7 +172,6 @@
       color: var(--text-muted);
     }
 
-    /* Icon เรืองแสง */
     .icon-box {
       width: 38px;
       height: 38px;
@@ -203,18 +207,11 @@
       color: var(--text-muted);
     }
 
-    /* Controller Card (ปั๊มน้ำ) */
     .pump-control {
       display: flex;
       align-items: center;
       justify-content: space-between;
       margin-top: 0.5rem;
-    }
-
-    .pump-info {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
     }
 
     .pump-status-badge {
@@ -237,7 +234,6 @@
       color: #b91c1c;
     }
 
-    /* สวิตช์ปุ่มกดสั่งงาน (Toggle Switch) */
     .switch {
       position: relative;
       display: inline-block;
@@ -288,27 +284,28 @@
     <!-- Header -->
     <header>
       <div class="brand-info">
-        <h1><i class="fa-solid fa-plant-wilt" style="color: var(--primary);"></i> Smart Farm</h1>
-        <p>ระบบตรวจวัดแนวตั้งเรียลไทม์</p>
+        <h1>🌷Smart Farm</h1>
+        <p>ระบบฟาร์มอัจฉริยะ IoT</p>
       </div>
-      <div class="status-badge" id="connStatus">
+      <!-- ตั้งค่าเริ่มต้นเป็นออฟไลน์ (สีแดง) -->
+      <div class="status-badge offline" id="connStatus">
         <span class="status-dot"></span>
         <span id="connText">ออฟไลน์</span>
       </div>
     </header>
 
-    <!-- Control Card (ไว้ด้านบนสุดเพื่อให้กดง่ายเวลาใช้งานแนวตั้ง) -->
+    <!-- Control Card -->
     <div class="card card-full">
       <div class="card-header">
         <span class="card-title">การควบคุมปั๊มน้ำ</span>
         <div class="icon-box icon-pump"><i class="fa-solid fa-faucet-drip"></i></div>
       </div>
       <div class="pump-control">
+        <!-- ตั้งค่าเริ่มต้นปั๊มเป็นปิด (OFF) -->
         <div id="pumpBadge" class="pump-status-badge off">
           <i class="fa-solid fa-power-off"></i>
           <span id="pumpText">ปิด (OFF)</span>
         </div>
-        <!-- Toggle Switch สำหรับกดสั่งงาน -->
         <label class="switch">
           <input type="checkbox" id="pumpToggle" onchange="togglePump(this)">
           <span class="slider"></span>
@@ -318,7 +315,6 @@
 
     <!-- Sensor Metrics Grid -->
     <div class="sensor-grid">
-      
       <!-- ความชื้นดิน -->
       <div class="card">
         <div class="card-header">
@@ -366,18 +362,17 @@
           <span class="unit">%</span>
         </div>
       </div>
-
     </div>
   </div>
 
   <script>
     const broker = "broker.hivemq.com";
-const port = 8884; // เปลี่ยนจาก 8000 เป็น 8884 (พอร์ตสำหรับ WSS)
-const clientID = "web_farm_v_" + Math.random().toString(16).substr(2, 8);
-const dataTopic = "my_farm_12345/data";
-const commandTopic = "my_farm_12345/command";
+    const port = 8884; 
+    const clientID = "web_farm_v_" + Math.random().toString(16).substr(2, 8);
+    const dataTopic = "my_farm_12345/data";
+    const commandTopic = "my_farm_12345/command";
 
-const client = new Paho.MQTT.Client(broker, Number(port), clientID);
+    const client = new Paho.MQTT.Client(broker, Number(port), clientID);
 
     const connStatus = document.getElementById('connStatus');
     const connText = document.getElementById('connText');
@@ -385,14 +380,42 @@ const client = new Paho.MQTT.Client(broker, Number(port), clientID);
     const pumpText = document.getElementById('pumpText');
     const pumpToggle = document.getElementById('pumpToggle');
 
+    let offlineTimer = null;
+
+    // ฟังก์ชันตั้งค่าให้เป็นสถานะ "ออฟไลน์" (สีแดง) และรีเซ็ตปั๊มเป็นปิด
+    function setOffline() {
+      connStatus.className = "status-badge offline";
+      connText.innerText = "ออฟไลน์";
+      
+      // รีเซ็ตค่าเซนเซอร์ทั้งหมดเป็น --
+      document.getElementById('soil').innerText = "--";
+      document.getElementById('soilTemp').innerText = "--";
+      document.getElementById('airTemp').innerText = "--";
+      document.getElementById('airHum').innerText = "--";
+
+      // ตั้งค่าปั๊มน้ำให้แสดงสถานะปิด
+      pumpBadge.className = "pump-status-badge off";
+      pumpText.innerText = "ปิด (OFF)";
+      pumpToggle.checked = false;
+    }
+
+    // ฟังก์ชันตั้งค่าให้เป็นสถานะ "ออนไลน์" (สีเขียว)
+    function setOnline() {
+      connStatus.className = "status-badge connected";
+      connText.innerText = "ออนไลน์";
+    }
+
     client.onConnectionLost = function (responseObject) {
-      connStatus.classList.remove('connected');
-      connText.innerText = "หลุดสาย";
+      setOffline();
       setTimeout(connectMQTT, 4000);
     };
 
     client.onMessageArrived = function (message) {
       try {
+        // เมื่อมีข้อมูลส่งเข้ามา รีเซ็ตตัวจับเวลาออฟไลน์ใหม่
+        clearTimeout(offlineTimer);
+        setOnline();
+
         const data = JSON.parse(message.payloadString);
 
         if (data.soil !== undefined) document.getElementById('soil').innerText = data.soil;
@@ -403,25 +426,29 @@ const client = new Paho.MQTT.Client(broker, Number(port), clientID);
         if (data.pump !== undefined) {
           const isOn = data.pump === 1;
           pumpBadge.className = isOn ? "pump-status-badge on" : "pump-status-badge off";
-          pumpText.innerText = isOn ? "กำลังทำงาน" : "ปิดการทำงาน";
+          pumpText.innerText = isOn ? "กำลังทำงาน" : "ปิด (OFF)";
           pumpToggle.checked = isOn;
         }
+
+        // หากไม่มีข้อมูลส่งมาภายใน 10 วินาที จะตัดเข้าโหมดออฟไลน์อัตโนมัติ
+        offlineTimer = setTimeout(() => {
+          setOffline();
+        }, 10000);
+
       } catch (e) {
         console.error("JSON Error: ", e);
       }
     };
 
     function connectMQTT() {
-      connText.innerText = "กำลังต่อ...";
       client.connect({
-        useSSL: true, // <--- เพิ่มบรรทัดนี้เพื่อให้ต่อผ่าน WSS (HTTPS) ได้
+        useSSL: true, 
         onSuccess: function () {
-          connStatus.classList.add('connected');
-          connText.innerText = "ออนไลน์";
+          // เชื่อมต่อ Broker สำเร็จ แต่ยังไม่เปลี่ยนสถานะเป็นออนไลน์ จนกว่าจะได้ยินเสียงข้อมูล (Message) จาก ESP32
           client.subscribe(dataTopic);
         },
         onFailure: function (err) {
-          connText.innerText = "ล้มเหลว";
+          setOffline();
           console.error("MQTT Connect Error: ", err);
           setTimeout(connectMQTT, 4000);
         }
@@ -436,6 +463,8 @@ const client = new Paho.MQTT.Client(broker, Number(port), clientID);
       client.send(message);
     }
 
+    // เริ่มต้นทำงาน (เรียกเชื่อมต่อ และบังคับสถานะเริ่มต้นเป็นออฟไลน์/ปิดไว้ก่อน)
+    setOffline();
     connectMQTT();
   </script>
 </body>
