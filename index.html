@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Smart Farm Vertical Dashboard</title>
+  
+  <!-- Fonts & Icons -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
+
+  <style>
+    :root {
+      --bg-color: #0f172a;
+      --card-bg: rgba(255, 255, 255, 0.85);
+      --card-border: rgba(255, 255, 255, 0.5);
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --primary: #10b981;
+      --primary-light: #ecfdf5;
+      --danger: #ef4444;
+      --danger-light: #fef2f2;
+      --radius: 20px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+
+    /* พื้นหลังแบบ Animated Gradient Mesh */
+    body {
+      min-height: 100vh;
+      background: radial-gradient(circle at 10% 20%, rgba(16, 185, 129, 0.15) 0%, transparent 40%),
+                  radial-gradient(circle at 90% 80%, rgba(14, 165, 233, 0.15) 0%, transparent 40%),
+                  radial-gradient(circle at 50% 50%, rgba(99, 102, 241, 0.1) 0%, transparent 60%),
+                  #f1f5f9;
+      background-size: 200% 200%;
+      animation: gradientMove 12s ease infinite;
+      display: flex;
+      justify-content: center;
+      padding: 1.5rem 1rem;
+    }
+
+    @keyframes gradientMove {
+      0% { background-position: 0% 0%; }
+      50% { background-position: 100% 100%; }
+      100% { background-position: 0% 0%; }
+    }
+
+    /* Vertical Container ควบคุมสัดส่วนแนวตั้ง */
+    .vertical-container {
+      width: 100%;
+      max-width: 440px; /* ขนาดสมส่วนกำลังดีสำหรับมือถือ/การมองแนวตั้ง */
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+
+    /* Header */
+    header {
+      background: var(--card-bg);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 10px 30px -10px rgba(0,0,0,0.05);
+    }
+
+    .brand-info h1 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .brand-info p {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    /* Status Badge */
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.35rem 0.75rem;
+      border-radius: 9999px;
+      background: rgba(100, 116, 139, 0.1);
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background-color: #94a3b8;
+    }
+
+    .status-badge.connected {
+      background: var(--primary-light);
+      color: #047857;
+    }
+
+    .status-badge.connected .status-dot {
+      background-color: var(--primary);
+      box-shadow: 0 0 8px var(--primary);
+    }
+
+    /* Main Section - Grid แนวตั้ง 2 คอลัมน์สำหรับค่าเซนเซอร์ */
+    .sensor-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+
+    /* Card Glassmorphism Design */
+    .card {
+      background: var(--card-bg);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+      box-shadow: 0 8px 25px -5px rgba(0,0,0,0.04);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 12px 30px -5px rgba(0,0,0,0.08);
+    }
+
+    .card-full {
+      grid-column: span 2;
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.75rem;
+    }
+
+    .card-title {
+      font-size: 0.825rem;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+
+    /* Icon เรืองแสง */
+    .icon-box {
+      width: 38px;
+      height: 38px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+    }
+
+    .icon-soil-hum { background: #e0f2fe; color: #0284c7; box-shadow: 0 0 12px rgba(2, 132, 199, 0.2); }
+    .icon-soil-temp { background: #ffedd5; color: #ea580c; box-shadow: 0 0 12px rgba(234, 88, 12, 0.2); }
+    .icon-air-temp { background: #fee2e2; color: #dc2626; box-shadow: 0 0 12px rgba(220, 38, 38, 0.2); }
+    .icon-air-hum { background: #e0e7ff; color: #4f46e5; box-shadow: 0 0 12px rgba(79, 70, 229, 0.2); }
+    .icon-pump { background: #f3e8ff; color: #9333ea; box-shadow: 0 0 12px rgba(147, 51, 234, 0.2); }
+
+    .card-value-group {
+      display: flex;
+      align-items: baseline;
+      gap: 0.25rem;
+    }
+
+    .val {
+      font-size: 1.85rem;
+      font-weight: 700;
+      color: var(--text-main);
+      letter-spacing: -0.03em;
+    }
+
+    .unit {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+
+    /* Controller Card (ปั๊มน้ำ) */
+    .pump-control {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 0.5rem;
+    }
+
+    .pump-info {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .pump-status-badge {
+      padding: 0.4rem 0.85rem;
+      border-radius: 10px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .pump-status-badge.on {
+      background-color: var(--primary-light);
+      color: #047857;
+    }
+
+    .pump-status-badge.off {
+      background-color: var(--danger-light);
+      color: #b91c1c;
+    }
+
+    /* สวิตช์ปุ่มกดสั่งงาน (Toggle Switch) */
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 52px;
+      height: 28px;
+    }
+
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background-color: #cbd5e1;
+      transition: .3s cubic-bezier(0.4, 0, 0.2, 1);
+      border-radius: 34px;
+    }
+
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 20px;
+      width: 20px;
+      left: 4px;
+      bottom: 4px;
+      background-color: white;
+      transition: .3s cubic-bezier(0.4, 0, 0.2, 1);
+      border-radius: 50%;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+
+    input:checked + .slider {
+      background-color: var(--primary);
+    }
+
+    input:checked + .slider:before {
+      transform: translateX(24px);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="vertical-container">
+    <!-- Header -->
+    <header>
+      <div class="brand-info">
+        <h1><i class="fa-solid fa-plant-wilt" style="color: var(--primary);"></i> Smart Farm</h1>
+        <p>ระบบตรวจวัดแนวตั้งเรียลไทม์</p>
+      </div>
+      <div class="status-badge" id="connStatus">
+        <span class="status-dot"></span>
+        <span id="connText">ออฟไลน์</span>
+      </div>
+    </header>
+
+    <!-- Control Card (ไว้ด้านบนสุดเพื่อให้กดง่ายเวลาใช้งานแนวตั้ง) -->
+    <div class="card card-full">
+      <div class="card-header">
+        <span class="card-title">การควบคุมปั๊มน้ำ</span>
+        <div class="icon-box icon-pump"><i class="fa-solid fa-faucet-drip"></i></div>
+      </div>
+      <div class="pump-control">
+        <div id="pumpBadge" class="pump-status-badge off">
+          <i class="fa-solid fa-power-off"></i>
+          <span id="pumpText">ปิด (OFF)</span>
+        </div>
+        <!-- Toggle Switch สำหรับกดสั่งงาน -->
+        <label class="switch">
+          <input type="checkbox" id="pumpToggle" onchange="togglePump(this)">
+          <span class="slider"></span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Sensor Metrics Grid -->
+    <div class="sensor-grid">
+      
+      <!-- ความชื้นดิน -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">ความชื้นดิน</span>
+          <div class="icon-box icon-soil-hum"><i class="fa-solid fa-droplet"></i></div>
+        </div>
+        <div class="card-value-group">
+          <span class="val" id="soil">--</span>
+          <span class="unit">%</span>
+        </div>
+      </div>
+
+      <!-- อุณหภูมิดิน -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">อุณหภูมิดิน</span>
+          <div class="icon-box icon-soil-temp"><i class="fa-solid fa-temperature-three-quarters"></i></div>
+        </div>
+        <div class="card-value-group">
+          <span class="val" id="soilTemp">--</span>
+          <span class="unit">°C</span>
+        </div>
+      </div>
+
+      <!-- อุณหภูมิอากาศ -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">อุณหภูมิอากาศ</span>
+          <div class="icon-box icon-air-temp"><i class="fa-solid fa-sun"></i></div>
+        </div>
+        <div class="card-value-group">
+          <span class="val" id="airTemp">--</span>
+          <span class="unit">°C</span>
+        </div>
+      </div>
+
+      <!-- ความชื้นอากาศ -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">ความชื้นอากาศ</span>
+          <div class="icon-box icon-air-hum"><i class="fa-solid fa-wind"></i></div>
+        </div>
+        <div class="card-value-group">
+          <span class="val" id="airHum">--</span>
+          <span class="unit">%</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    const broker = "broker.hivemq.com";
+    const port = 8000;
+    const clientID = "web_farm_v_" + Math.random().toString(16).substr(2, 8);
+    const dataTopic = "my_farm_12345/data";
+    const commandTopic = "my_farm_12345/command";
+
+    const client = new Paho.MQTT.Client(broker, Number(port), clientID);
+
+    const connStatus = document.getElementById('connStatus');
+    const connText = document.getElementById('connText');
+    const pumpBadge = document.getElementById('pumpBadge');
+    const pumpText = document.getElementById('pumpText');
+    const pumpToggle = document.getElementById('pumpToggle');
+
+    client.onConnectionLost = function (responseObject) {
+      connStatus.classList.remove('connected');
+      connText.innerText = "หลุดสาย";
+      setTimeout(connectMQTT, 4000);
+    };
+
+    client.onMessageArrived = function (message) {
+      try {
+        const data = JSON.parse(message.payloadString);
+
+        if (data.soil !== undefined) document.getElementById('soil').innerText = data.soil;
+        if (data.soilTemp !== undefined) document.getElementById('soilTemp').innerText = Number(data.soilTemp).toFixed(1);
+        if (data.airTemp !== undefined) document.getElementById('airTemp').innerText = Number(data.airTemp).toFixed(1);
+        if (data.airHum !== undefined) document.getElementById('airHum').innerText = Number(data.airHum).toFixed(1);
+
+        if (data.pump !== undefined) {
+          const isOn = data.pump === 1;
+          pumpBadge.className = isOn ? "pump-status-badge on" : "pump-status-badge off";
+          pumpText.innerText = isOn ? "กำลังทำงาน" : "ปิดการทำงาน";
+          pumpToggle.checked = isOn;
+        }
+      } catch (e) {
+        console.error("JSON Error: ", e);
+      }
+    };
+
+    function connectMQTT() {
+      connText.innerText = "กำลังต่อ...";
+      client.connect({
+        onSuccess: function () {
+          connStatus.classList.add('connected');
+          connText.innerText = "ออนไลน์";
+          client.subscribe(dataTopic);
+        },
+        onFailure: function (err) {
+          connText.innerText = "ล้มเหลว";
+          setTimeout(connectMQTT, 4000);
+        }
+      });
+    }
+
+    // ฟังก์ชันส่งคำสั่งเปิด/ปิด ปั๊มน้ำไปยัง ESP32
+    function togglePump(element) {
+      const payload = JSON.stringify({ pump: element.checked ? 1 : 0 });
+      const message = new Paho.MQTT.Message(payload);
+      message.destinationName = commandTopic;
+      client.send(message);
+    }
+
+    connectMQTT();
+  </script>
+</body>
+</html>
